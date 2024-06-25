@@ -5,11 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>User Input Table</title>
 <style>
-    /* Your CSS styles */
+    .table-container {
+        margin-bottom: 20px;
+    }
+
+    .table-name {
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+
     .jalan-table {
         width: 100%;
-        margin-bottom: 20px;
         border-collapse: collapse;
+        margin-top: 10px;
     }
 
     .jalan-table th, .jalan-table td {
@@ -18,17 +26,7 @@
         text-align: left;
     }
 
-    .table-heading {
-        font-size: 18px;
-        font-weight: bold;
-        margin-bottom: 10px;
-    }
-
-    .editable {
-        cursor: pointer;
-    }
-
-    .save-button {
+    .editable, .submit-button {
         cursor: pointer;
         background-color: #4CAF50;
         color: white;
@@ -61,6 +59,7 @@
     <div id="outputTable"></div>
 
     <script>
+        // Function to submit form data
         document.getElementById('inputForm').addEventListener('submit', function(event) {
             event.preventDefault();
 
@@ -73,14 +72,12 @@
                 return;
             }
 
-            // Prepare data to send to server
             var formData = {
                 nama: nama,
                 unit: unit,
                 jalan: jalan
             };
 
-            // Send form data to server for processing
             fetch('/api/data', {
                 method: 'POST',
                 headers: {
@@ -128,11 +125,10 @@
         }
 
         // Function to display table based on fetched data
-       // Function to display table based on fetched data
         function displayTable(data) {
             var outputTable = document.getElementById('outputTable');
             outputTable.innerHTML = ''; // Clear existing table
-        
+
             // Group data by Jalan value
             var groupedData = {};
             data.forEach(entry => {
@@ -141,16 +137,21 @@
                 }
                 groupedData[entry.jalan].push(entry);
             });
-        
+
             // Display tables for each Jalan value
             Object.keys(groupedData).forEach(jalan => {
+                var tableContainer = document.createElement('div');
+                tableContainer.classList.add('table-container');
+
+                // Table name
+                var tableName = document.createElement('div');
+                tableName.textContent = 'Jalan: ' + jalan;
+                tableName.classList.add('table-name');
+
+                // Create table
                 var table = document.createElement('table');
                 table.classList.add('jalan-table');
-        
-                // Create table heading
-                var caption = table.createCaption();
-                caption.textContent = 'Jalan: ' + jalan;
-        
+
                 // Create table headers
                 var thead = table.createTHead();
                 var headerRow = thead.insertRow();
@@ -159,7 +160,7 @@
                     th.textContent = headerText;
                     headerRow.appendChild(th);
                 });
-        
+
                 // Create table body
                 var tbody = table.createTBody();
                 groupedData[jalan].forEach(entry => {
@@ -168,8 +169,8 @@
                         var cell = row.insertCell();
                         cell.textContent = entry[field];
                     });
-        
-                    // Add edit button in the same row
+
+                    // Edit button
                     var editCell = row.insertCell();
                     var editButton = document.createElement('button');
                     editButton.textContent = 'Edit';
@@ -177,33 +178,37 @@
                     editButton.addEventListener('click', function() {
                         var updatedNama = prompt('Enter updated Nama:', entry.nama);
                         if (updatedNama !== null) {
-                            updateNama(entry.unit, entry.jalan, updatedNama);
+                            entry.nama = updatedNama; // Update local data
                         }
                     });
                     editCell.appendChild(editButton);
+
+                    // Submit button
+                    var submitCell = row.insertCell();
+                    var submitButton = document.createElement('button');
+                    submitButton.textContent = 'Submit';
+                    submitButton.classList.add('submit-button');
+                    submitButton.addEventListener('click', function() {
+                        submitUpdatedEntry(entry);
+                    });
+                    submitCell.appendChild(submitButton);
                 });
-        
-                // Append table to output div
-                outputTable.appendChild(table);
+
+                // Append table name and table to container
+                tableContainer.appendChild(tableName);
+                tableContainer.appendChild(table);
+                outputTable.appendChild(tableContainer);
             });
         }
 
-
-        // Function to update Nama field
-        function updateNama(unit, jalan, updatedNama) {
-            var formData = {
-                unit: unit,
-                jalan: jalan,
-                nama: updatedNama
-            };
-
-            // Send updated data to server for processing
-            fetch(`/api/data/${unit}/${jalan}`, {
+        // Function to submit updated entry to server
+        function submitUpdatedEntry(entry) {
+            fetch(`/api/data/${entry.unit}/${entry.jalan}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ nama: updatedNama })
+                body: JSON.stringify({ nama: entry.nama })
             })
             .then(response => {
                 if (!response.ok) {
