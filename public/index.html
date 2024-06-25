@@ -128,10 +128,11 @@
         }
 
         // Function to display table based on fetched data
+       // Function to display table based on fetched data
         function displayTable(data) {
             var outputTable = document.getElementById('outputTable');
             outputTable.innerHTML = ''; // Clear existing table
-
+        
             // Group data by Jalan value
             var groupedData = {};
             data.forEach(entry => {
@@ -140,35 +141,35 @@
                 }
                 groupedData[entry.jalan].push(entry);
             });
-
+        
             // Display tables for each Jalan value
             Object.keys(groupedData).forEach(jalan => {
                 var table = document.createElement('table');
                 table.classList.add('jalan-table');
-
+        
                 // Create table heading
                 var caption = table.createCaption();
                 caption.textContent = 'Jalan: ' + jalan;
-
+        
                 // Create table headers
                 var thead = table.createTHead();
                 var headerRow = thead.insertRow();
-                ['Nama', 'Unit', 'Actions'].forEach(headerText => {
+                ['Nama', 'Unit', 'Jalan', 'Actions'].forEach(headerText => {
                     var th = document.createElement('th');
                     th.textContent = headerText;
                     headerRow.appendChild(th);
                 });
-
+        
                 // Create table body
                 var tbody = table.createTBody();
                 groupedData[jalan].forEach(entry => {
                     var row = tbody.insertRow();
-                    ['nama', 'unit'].forEach(field => {
+                    ['nama', 'unit', 'jalan'].forEach(field => {
                         var cell = row.insertCell();
                         cell.textContent = entry[field];
                     });
-
-                    // Add edit button in the same column as Nama
+        
+                    // Add edit button in the same row
                     var editCell = row.insertCell();
                     var editButton = document.createElement('button');
                     editButton.textContent = 'Edit';
@@ -181,11 +182,12 @@
                     });
                     editCell.appendChild(editButton);
                 });
-
+        
                 // Append table to output div
                 outputTable.appendChild(table);
             });
         }
+
 
         // Function to update Nama field
         function updateNama(unit, jalan, updatedNama) {
