@@ -1,113 +1,232 @@
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const bodyParser = require('body-parser');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Input Table</title>
+<style>
+    /* Your CSS styles */
+    .jalan-table {
+        width: 100%;
+        margin-bottom: 20px;
+        border-collapse: collapse;
+    }
 
-const app = express();
-const PORT = process.env.PORT || 3000;
-const dataPath = path.join(__dirname, 'data.json');
+    .jalan-table th, .jalan-table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+    }
 
-// Middleware
-app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, '..', 'public')));
+    .table-heading {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
 
-// Routes
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
-});
+    .editable {
+        cursor: pointer;
+    }
 
-// Get all data
-app.get('/api/data', (req, res) => {
-    fs.readFile(dataPath, 'utf8', (err, data) => {
-        if (err) {
-            console.error('Error reading data.json:', err);
-            res.status(500).send('Error reading data');
-        } else {
-            res.json(JSON.parse(data));
-        }
-    });
-});
+    .save-button {
+        cursor: pointer;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        margin: 4px 2px;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+</style>
+</head>
+<body>
+    <h2>Input Data</h2>
+    <form id="inputForm">
+        <label for="nama">Nama:</label>
+        <input type="text" id="nama" name="nama" required><br><br>
 
-// Add new entry
-app.post('/api/data', (req, res) => {
-    const formData = req.body;
+        <label for="unit">Unit:</label>
+        <input type="text" id="unit" name="unit" required><br><br>
 
-    // Validate and sanitize inputs if necessary
+        <label for="jalan">Jalan:</label>
+        <input type="text" id="jalan" name="jalan" required pattern="11/[1-6]" title="Valid values are 11/1 to 11/6"><br><br>
 
-    // Read existing data from data.json
-    fs.readFile(dataPath, 'utf8', (err, data) => {
-        if (err) {
-            console.error('Error reading data.json:', err);
-            res.status(500).send('Error reading data');
-        } else {
-            const jsonData = JSON.parse(data);
+        <button type="submit">Submit</button>
+    </form>
 
-            // Check if unit and jalan already exist
-            const existingEntry = jsonData.find(entry => entry.unit === formData.unit && entry.jalan === formData.jalan);
-            if (existingEntry) {
-                res.status(400).send('Unit and Jalan combination already exists');
-            } else {
-                // Add new entry
-                jsonData.push(formData);
+    <div id="outputTable"></div>
 
-                // Write updated data back to data.json
-                fs.writeFile(dataPath, JSON.stringify(jsonData, null, 2), 'utf8', (err) => {
-                    if (err) {
-                        console.error('Error writing data.json:', err);
-                        res.status(500).send('Error updating data');
-                    } else {
-                        res.status(200).send('Form submission successful');
-                    }
-                });
+    <script>
+        document.getElementById('inputForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            var nama = document.getElementById('nama').value.trim();
+            var unit = document.getElementById('unit').value.trim();
+            var jalan = document.getElementById('jalan').value.trim();
+
+            if (!isValidJalan(jalan)) {
+                alert('Invalid Jalan value. Please enter one of: 11/1, 11/2, 11/3, 11/4, 11/5, 11/6');
+                return;
             }
-        }
-    });
-});
 
-// Update nama field
-app.put('/api/data/:unit/:jalan', (req, res) => {
-    const { unit, jalan } = req.params;
-    const updatedNama = req.body.nama;
+            // Prepare data to send to server
+            var formData = {
+                nama: nama,
+                unit: unit,
+                jalan: jalan
+            };
 
-    // Read existing data from data.json
-    fs.readFile(dataPath, 'utf8', (err, data) => {
-        if (err) {
-            console.error('Error reading data.json:', err);
-            res.status(500).send('Error reading data');
-        } else {
-            const jsonData = JSON.parse(data);
-
-            // Find the entry to update
-            const updatedData = jsonData.map(entry => {
-                if (entry.unit === unit && entry.jalan === jalan) {
-                    return {
-                        ...entry,
-                        nama: updatedNama
-                    };
-                } else {
-                    return entry;
+            // Send form data to server for processing
+            fetch('/api/data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
                 }
+                return response.text();
+            })
+            .then(data => {
+                alert(data); // Show response from server
+                fetchTableData(); // Refresh table after successful submission
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error submitting form');
             });
 
-            // Write updated data back to data.json
-            fs.writeFile(dataPath, JSON.stringify(updatedData, null, 2), 'utf8', (err) => {
-                if (err) {
-                    console.error('Error writing data.json:', err);
-                    res.status(500).send('Error updating data');
-                } else {
-                    res.status(200).send('Nama updated successfully');
+            // Reset form fields after submission
+            document.getElementById('nama').value = '';
+            document.getElementById('unit').value = '';
+            document.getElementById('jalan').value = '';
+        });
+
+        // Function to fetch and display table data
+        function fetchTableData() {
+            fetch('/api/data')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
                 }
+                return response.json();
+            })
+            .then(data => {
+                displayTable(data); // Display table based on fetched data
+            })
+            .catch(error => {
+                console.error('Error fetching data:', error);
+                alert('Error fetching table data');
             });
         }
-    });
-});
 
-// Handle other routes
-app.use((req, res) => {
-    res.status(404).send('Not Found');
-});
+        // Function to display table based on fetched data
+        function displayTable(data) {
+            var outputTable = document.getElementById('outputTable');
+            outputTable.innerHTML = ''; // Clear existing table
 
-// Start server
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+            // Group data by Jalan value
+            var groupedData = {};
+            data.forEach(entry => {
+                if (!groupedData[entry.jalan]) {
+                    groupedData[entry.jalan] = [];
+                }
+                groupedData[entry.jalan].push(entry);
+            });
+
+            // Display tables for each Jalan value
+            Object.keys(groupedData).forEach(jalan => {
+                var table = document.createElement('table');
+                table.classList.add('jalan-table');
+
+                // Create table heading
+                var caption = table.createCaption();
+                caption.textContent = 'Jalan: ' + jalan;
+
+                // Create table headers
+                var thead = table.createTHead();
+                var headerRow = thead.insertRow();
+                ['Nama', 'Unit', 'Actions'].forEach(headerText => {
+                    var th = document.createElement('th');
+                    th.textContent = headerText;
+                    headerRow.appendChild(th);
+                });
+
+                // Create table body
+                var tbody = table.createTBody();
+                groupedData[jalan].forEach(entry => {
+                    var row = tbody.insertRow();
+                    ['nama', 'unit'].forEach(field => {
+                        var cell = row.insertCell();
+                        cell.textContent = entry[field];
+                    });
+
+                    // Add edit button in the same column as Nama
+                    var editCell = row.insertCell();
+                    var editButton = document.createElement('button');
+                    editButton.textContent = 'Edit';
+                    editButton.classList.add('editable');
+                    editButton.addEventListener('click', function() {
+                        var updatedNama = prompt('Enter updated Nama:', entry.nama);
+                        if (updatedNama !== null) {
+                            updateNama(entry.unit, entry.jalan, updatedNama);
+                        }
+                    });
+                    editCell.appendChild(editButton);
+                });
+
+                // Append table to output div
+                outputTable.appendChild(table);
+            });
+        }
+
+        // Function to update Nama field
+        function updateNama(unit, jalan, updatedNama) {
+            var formData = {
+                unit: unit,
+                jalan: jalan,
+                nama: updatedNama
+            };
+
+            // Send updated data to server for processing
+            fetch(`/api/data/${unit}/${jalan}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ nama: updatedNama })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.text();
+            })
+            .then(data => {
+                alert(data); // Show response from server
+                fetchTableData(); // Refresh table after successful update
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error updating Nama');
+            });
+        }
+
+        // Check if Jalan value is valid
+        function isValidJalan(jalan) {
+            var validJalans = ['11/1', '11/2', '11/3', '11/4', '11/5', '11/6'];
+            return validJalans.includes(jalan);
+        }
+
+        // Initial fetch to display table on page load
+        fetchTableData();
+    </script>
+</body>
+</html>
